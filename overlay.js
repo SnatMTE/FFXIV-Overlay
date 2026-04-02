@@ -6,7 +6,6 @@
   const urlSelect = document.getElementById('url-select');
   let gotFirstEvent = false;
   let lastDpsHtml = null;
-  let lastDpsHtml = null;
 
   function appendMessage(kind, content) {
     const ts = new Date().toLocaleTimeString();
@@ -326,6 +325,8 @@
         done = true;
         ws = socket;
         connectedUrl = url;
+          // expose for debugging
+          try { window.overlayWs = ws; } catch (e) {}
         statusEl.textContent = 'Connected: ' + url;
         appendMessage('info', 'Connected to ' + url);
         ws.onmessage = (ev) => { parseAndDispatch(ev.data); };
@@ -333,6 +334,7 @@
         ws.onclose = () => {
           appendMessage('info', 'WebSocket closed');
           statusEl.textContent = 'Closed';
+          try { window.overlayWs = null; } catch (e) {}
           ws = null; connectedUrl = null;
           if (sendStartInterval) { clearInterval(sendStartInterval); sendStartInterval = null; }
         };
