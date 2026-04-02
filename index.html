@@ -4,28 +4,27 @@
   <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ACT Overlay — CombatData Viewer</title>
+  <title>ACT Overlay - CombatData Viewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="overlay.css" />
 </head>
 <body>
   <header>
-    <h1>ACT Overlay - CombatData Viewer</h1>
+    <h1><span class="crystal">✦</span> <span id="location">Unknown Location</span></h1>
     <div id="status">Initializing…</div>
   </header>
-  <div id="controls">
-    <button id="btn-start">Start</button>
-    <button id="btn-stop">Stop</button>
-    <select id="url-select">
-      <option>ws://127.0.0.1:10501</option>
-      <option>ws://127.0.0.1:10501/ws</option>
-    </select>
-  </div>
+  <!-- Controls removed per user request -->
   <main id="container">
     <section id="panel-dps" class="panel">
-      <h2>Party DPS</h2>
+      <h2><span class="section-icon">◆</span> Party DPS</h2>
       <div id="dps-list" class="dps-list">No data yet</div>
     </section>
   </main>
+  <footer id="site-footer">
+    <div class="footer-inner">Visit <br /><a href="https://snat.co.uk/" target="_blank" rel="noopener noreferrer">Tales of Snat</a></div>
+  </footer>
   <script src="overlay.js"></script>
 </body>
 </html>

@@ -1,11 +1,66 @@
 (function(){
   const statusEl = document.getElementById('status');
   const messagesEl = document.getElementById('messages');
-  const btnStart = document.getElementById('btn-start');
-  const btnStop = document.getElementById('btn-stop');
   const urlSelect = document.getElementById('url-select');
   let gotFirstEvent = false;
   let lastDpsHtml = null;
+
+  // Update header location when a zone/location is detected
+  function updateLocation(name) {
+    try {
+      const el = document.getElementById('location');
+      if (!el) return;
+      el.textContent = String(name || '').trim() || 'Unknown Location';
+      // expose as title for easy hover-reading
+      el.parentElement && (el.parentElement.title = String(name || ''));
+    } catch (e) { /* ignore DOM errors */ }
+  }
+
+  // Heuristic search for zone/location strings in incoming event payloads
+  function findZoneInData(data) {
+    if (!data) return null;
+    // If an array was provided (e.g. onLogLine often supplies arrays), scan each item
+    if (Array.isArray(data)) {
+      for (const item of data) {
+        const found = findZoneInData(item);
+        if (found) return found;
+      }
+      return null;
+    }
+
+    if (typeof data === 'string') {
+      // common ACT/FFXIV log text patterns (cover several formats)
+      const patterns = [
+        /Changed Zone to\s+['"]?(.+?)['"]?\.?$/i,
+        /You (?:have )?entered\s+['"]?(.+?)['"]?[\.\!]?$/i,
+        /You (?:have )?entered the\s+['"]?(.+?)['"]?[\.\!]?$/i,
+        /Zone\s*[:\-]\s*['"]?(.+?)['"]?\.?$/i,
+        /zone[:\s-]+(.+)$/i,
+        /^(?:\d{2}:){2}\d{2}.*Changed Zone to ['"]?(.+?)['"]?\.?$/i
+      ];
+      for (const re of patterns) {
+        const m = data.match(re);
+        if (m && m[1]) return m[1].trim();
+      }
+      return null;
+    }
+
+    if (typeof data === 'object') {
+      const keys = ['CurrentZoneName','currentZoneName','CurrentZone','currentZone','current_zone','zone','Zone','ZoneName','zoneName','zone_name','Map','Location','Territory','TerritoryName','mapName','ZoneText','Area','area','MapName','zoneTitle','zone_title'];
+      for (const k of keys) {
+        if (k in data && typeof data[k] === 'string' && data[k].trim()) return data[k].trim();
+      }
+      // Recurse into object properties
+      for (const k in data) {
+        try {
+          const v = data[k];
+          const found = findZoneInData(v);
+          if (found) return found;
+        } catch (e) {}
+      }
+    }
+    return null;
+  }
 
   function appendMessage(kind, content) {
     const ts = new Date().toLocaleTimeString();
@@ -31,6 +86,11 @@
     appendMessage('event', { event: name, data: data });
     // mark that we've seen an event (used by retry logic)
     gotFirstEvent = true;
+    // try to detect zone/location from the payload or event name/log line
+    try {
+      const zone = findZoneInData(data) || (typeof name === 'string' && findZoneInData(name));
+      if (zone) updateLocation(zone);
+    } catch (e) { /* ignore detection errors */ }
     // If this looks like combat data, update the DPS panel
     try {
       if (!data) return;
@@ -138,8 +198,10 @@
     const parts = [];
     parts.push(`<div class="dps-total">Party DPS: ${formatNumber(total)}</div>`);
     parts.push('<div class="dps-rows">');
+    const maxDps = rows.length && !isNaN(rows[0].dps) ? rows[0].dps : 1;
     for (const r of rows) {
-      parts.push(`<div class="dps-row"><div class="dps-name">${escapeHtml(r.name)}</div><div class="dps-value">${formatNumber(r.dps)}</div></div>`);
+      const pct = isNaN(r.dps) || maxDps <= 0 ? 0 : Math.round((r.dps / maxDps) * 100);
+      parts.push(`<div class="dps-row" style="--bar-pct:${pct}%"><div class="dps-name">${escapeHtml(r.name)}</div><div class="dps-value">${formatNumber(r.dps)}</div></div>`);
     }
     parts.push('</div>');
     panel.innerHTML = parts.join('');
@@ -366,7 +428,7 @@
   }
 
   async function autoConnect() {
-    const candidates = [ urlSelect.value, 'ws://127.0.0.1:10501', 'ws://127.0.0.1:10501/ws', 'ws://127.0.0.1:10501/socket', 'ws://127.0.0.1:10501/overlay', 'ws://127.0.0.1:10501/watch' ];
+    const candidates = [ (urlSelect && urlSelect.value) || 'ws://127.0.0.1:10501', 'ws://127.0.0.1:10501/ws', 'ws://127.0.0.1:10501/socket', 'ws://127.0.0.1:10501/overlay', 'ws://127.0.0.1:10501/watch' ];
     for (const url of candidates) {
       appendMessage('info', 'Trying ' + url);
       try {
@@ -393,31 +455,7 @@
     statusEl.textContent = 'No WS connection';
   }
 
-  btnStart.addEventListener('click', async () => {
-    if (typeof startOverlayEvents === 'function') {
-      try { startOverlayEvents(); appendMessage('info','Called startOverlayEvents()'); } catch(e) { appendMessage('error', 'startOverlayEvents failed: '+e); }
-      return;
-    }
-    const url = urlSelect.value || 'ws://127.0.0.1:10501';
-    try {
-      await tryConnect(url);
-    } catch(e) {
-      appendMessage('error', 'Connect failed: ' + e);
-    }
-  });
-
-  btnStop.addEventListener('click', () => {
-    if (typeof stopOverlayEvents === 'function') {
-      try { stopOverlayEvents(); appendMessage('info','Called stopOverlayEvents()'); } catch(e) { appendMessage('error','stopOverlayEvents failed: '+e); }
-    }
-    if (ws) {
-      try { ws.send('stopOverlayEvents'); } catch(e){}
-      try { ws.close(); } catch(e){}
-      ws = null;
-      statusEl.textContent = 'Stopped';
-      appendMessage('info','Stopped WebSocket');
-    }
-  });
+  // Start/Stop controls removed — autoConnect + OverlayPlugin API handle connections
 
   // try automatically when not inside overlay plugin
   setTimeout(() => { if (!window.addOverlayListener) autoConnect(); }, 250);
