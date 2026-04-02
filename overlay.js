@@ -141,6 +141,38 @@
     return undefined;
   }
 
+  function normalizeJob(s) {
+    if (!s) return '';
+    const v = String(s).trim();
+    const up = v.toUpperCase();
+    if (/^[A-Z]{1,4}$/.test(up)) return up;
+    const map = {
+      'WHITE MAGE':'WHM','SCHOLAR':'SCH','ASTROLOGIAN':'AST','SAGE':'SGE',
+      'PALADIN':'PLD','WARRIOR':'WAR','DARK KNIGHT':'DRK','GUNBREAKER':'GNB',
+      'MONK':'MNK','DRAGOON':'DRG','NINJA':'NIN','SAMURAI':'SAM','REAPER':'RPR',
+      'BARD':'BRD','MACHINIST':'MCH','DANCER':'DNC','BLACK MAGE':'BLM','SUMMONER':'SMN','RED MAGE':'RDM','BLUE MAGE':'BLU'
+    };
+    const key = up.replace(/[^A-Z ]+/g, '').replace(/\s+/g, ' ').trim();
+    if (map[key]) return map[key];
+    const words = v.match(/\b[A-Za-z]/g);
+    if (words && words.length) return words.join('').slice(0,3).toUpperCase();
+    return up;
+  }
+
+  function getJob(obj) {
+    if (!obj || typeof obj !== 'object') return '';
+    const keys = ['Job','job','ClassJob','ClassJobName','JobName','classJob','jobName','class_job','job_name'];
+    for (const k of keys) {
+      if (k in obj && obj[k]) {
+        const val = String(obj[k]).trim();
+        const norm = normalizeJob(val);
+        if (norm) return norm;
+        return val;
+      }
+    }
+    return '';
+  }
+
   function isLikelyPlayer(obj) {
     if (!obj || typeof obj !== 'object') return false;
     if ('Job' in obj || 'job' in obj) return true;
@@ -189,8 +221,8 @@
     // prefer likely players
     let players = arr.filter(isLikelyPlayer);
     if (!players.length) players = arr.slice(0, 8);
-    // map to name/dps
-    const rows = players.map(p => ({ name: getName(p) || 'Unknown', dps: getDpsValue(p) }));
+    // map to name/job/dps
+    const rows = players.map(p => ({ name: getName(p) || 'Unknown', job: getJob(p), dps: getDpsValue(p) }));
     // sort by dps desc
     rows.sort((a,b) => (isNaN(b.dps)?0:b.dps) - (isNaN(a.dps)?0:a.dps));
     const total = rows.reduce((s,r) => s + (isNaN(r.dps)?0:r.dps), 0);
@@ -201,7 +233,8 @@
     const maxDps = rows.length && !isNaN(rows[0].dps) ? rows[0].dps : 1;
     for (const r of rows) {
       const pct = isNaN(r.dps) || maxDps <= 0 ? 0 : Math.round((r.dps / maxDps) * 100);
-      parts.push(`<div class="dps-row" style="--bar-pct:${pct}%"><div class="dps-name">${escapeHtml(r.name)}</div><div class="dps-value">${formatNumber(r.dps)}</div></div>`);
+      const jobHtml = r.job ? `<span class="player-job"> ${escapeHtml(r.job)}</span>` : '';
+      parts.push(`<div class="dps-row" style="--bar-pct:${pct}%"><div class="dps-name">${escapeHtml(r.name)}${jobHtml}</div><div class="dps-value">${formatNumber(r.dps)}</div></div>`);
     }
     parts.push('</div>');
     panel.innerHTML = parts.join('');
