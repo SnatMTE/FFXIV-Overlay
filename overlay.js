@@ -56,41 +56,6 @@
     return NaN;
   }
 
-  function parseDurationValue(v) {
-    if (v === undefined || v === null) return NaN;
-    if (typeof v === 'number') return v;
-    if (typeof v === 'string') {
-      const s = v.trim();
-      if (/^\d+$/.test(s)) return parseInt(s, 10);
-      if (s.indexOf(':') !== -1) {
-        const parts = s.split(':').map(p => parseFloat(p) || 0);
-        if (parts.length === 2) return parts[0] * 60 + parts[1];
-        if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-      }
-      const n = parseFloat(s.replace(/,/g, ''));
-      return isNaN(n) ? NaN : n;
-    }
-    return NaN;
-  }
-
-  function getDurationSeconds(obj) {
-    if (!obj || typeof obj !== 'object') return NaN;
-    const keys = ['DURATION', 'duration', 'Duration', 'ActiveTime', 'ActiveSeconds'];
-    for (const k of keys) {
-      if (k in obj) {
-        const v = obj[k];
-        const s = parseDurationValue(v);
-        if (!isNaN(s)) return s;
-      }
-    }
-    return NaN;
-  }
-
-  function formatPercent(v) {
-    if (v === undefined || v === null || isNaN(v)) return '-';
-    return (Math.round(v * 10) / 10).toLocaleString() + '%';
-  }
-
   function getDpsValue(obj) {
     if (!obj || typeof obj !== 'object') return NaN;
     const keys = ['ENCDPS','EncDPS','encdps','DPS','dps','dps_1','Damage'];
@@ -165,19 +130,8 @@
     // prefer likely players
     let players = arr.filter(isLikelyPlayer);
     if (!players.length) players = arr.slice(0, 8);
-    // determine encounter duration (seconds) if available
-    let encounterSeconds = NaN;
-    if (data && data.Encounter) encounterSeconds = getDurationSeconds(data.Encounter);
-    if (isNaN(encounterSeconds)) encounterSeconds = getDurationSeconds(data);
-
-    // map to name/dps/uptime
-    const rows = players.map(p => {
-      const name = getName(p) || 'Unknown';
-      const dps = getDpsValue(p);
-      const pSeconds = getDurationSeconds(p);
-      const uptime = (!isNaN(encounterSeconds) && encounterSeconds > 0 && !isNaN(pSeconds)) ? (pSeconds / encounterSeconds * 100) : NaN;
-      return { name, dps, uptime, pSeconds };
-    });
+    // map to name/dps
+    const rows = players.map(p => ({ name: getName(p) || 'Unknown', dps: getDpsValue(p) }));
     // sort by dps desc
     rows.sort((a,b) => (isNaN(b.dps)?0:b.dps) - (isNaN(a.dps)?0:a.dps));
     const total = rows.reduce((s,r) => s + (isNaN(r.dps)?0:r.dps), 0);
@@ -186,7 +140,7 @@
     parts.push(`<div class="dps-total">Party DPS: ${formatNumber(total)}</div>`);
     parts.push('<div class="dps-rows">');
     for (const r of rows) {
-      parts.push(`<div class="dps-row"><div class="dps-name">${escapeHtml(r.name)}</div><div class="dps-value"><span class="dps-value-main">${formatNumber(r.dps)}</span> <span class="dps-uptime">${formatPercent(r.uptime)}</span></div></div>`);
+      parts.push(`<div class="dps-row"><div class="dps-name">${escapeHtml(r.name)}</div><div class="dps-value">${formatNumber(r.dps)}</div></div>`);
     }
     parts.push('</div>');
     panel.innerHTML = parts.join('');

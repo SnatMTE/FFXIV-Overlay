@@ -16,6 +16,3 @@ main { margin-top:12px; }
 .dps-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed rgba(0,0,0,0.06); }
 .dps-name { font-weight:600; }
 .dps-value { font-family: Consolas, 'Courier New', monospace; }
-
-.dps-value-main { font-weight:700; }
-.dps-uptime { font-size:12px; color: rgba(0,0,0,0.6); margin-left:8px; font-weight:500; }
