@@ -1,4 +1,4 @@
-# FFXIV Overlay
+# Snat's Simple FFXIV's Overlay
 
 A lightweight web-based overlay for Final Fantasy XIV. Designed to be used as a local browser source (for example, OBS Browser Source) to display on-screen information using HTML, CSS and JavaScript.
 
