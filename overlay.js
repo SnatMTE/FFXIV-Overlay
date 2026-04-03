@@ -4,6 +4,81 @@
   const urlSelect = document.getElementById('url-select');
   let gotFirstEvent = false;
   let lastDpsHtml = null;
+  // Optional host override from query or user input (ws://...)
+  let hostOverride = null;
+
+  function getHostFromQuery() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      for (const [k, v] of params.entries()) {
+        if (!v) continue;
+        const key = (k || '').toLowerCase();
+        if (key === 'host_port' || key === 'hostport' || key === 'host') return v;
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  // Parse freeform input: accepts ws://... or '?HOST_PORT=ws://...'
+  function parseHostInput(input) {
+    if (!input) return null;
+    const s = String(input).trim();
+    if (!s) return null;
+    if (s.startsWith('?')) {
+      try {
+        const params = new URLSearchParams(s.slice(1));
+        for (const [k, v] of params.entries()) {
+          if (!v) continue;
+          const key = (k || '').toLowerCase();
+          if (key === 'host_port' || key === 'hostport' || key === 'host') return v;
+        }
+      } catch (e) {}
+      return null;
+    }
+    // Accept plain HOST_PORT=... text
+    const m = s.match(/host_port=([^&\s]+)/i);
+    if (m && m[1]) return decodeURIComponent(m[1]);
+    // Accept raw ws:// or wss:// URL
+    if (s.startsWith('ws://') || s.startsWith('wss://')) return s;
+    // Accept host:port and prepend ws://
+    if (/^[\w\.-]+:\d+$/.test(s)) return 'ws://' + s;
+    return null;
+  }
+
+  function setHostOverride(url) {
+    if (!url) return;
+    hostOverride = url;
+    appendMessage('info', 'Host override set: ' + hostOverride);
+    try { statusEl.textContent = 'Host: ' + hostOverride; } catch (e) {}
+    try { if (ws) ws.close(); } catch (e) {}
+    // start connection attempts immediately
+    try { autoConnect(); } catch (e) {}
+  }
+
+  // initialize hostOverride from page query if present
+  try {
+    const qh = getHostFromQuery();
+    if (qh) {
+      hostOverride = qh;
+      appendMessage('info', 'Host override from URL: ' + hostOverride);
+      try { statusEl.textContent = 'Host: ' + hostOverride; } catch (e) {}
+    }
+  } catch (e) {}
+
+  // Allow clicking the status text to change the host via prompt
+  try {
+    if (statusEl) {
+      statusEl.style.cursor = 'pointer';
+      statusEl.title = 'Click to change WS host';
+      statusEl.addEventListener('click', () => {
+        const cur = hostOverride || '';
+        const input = prompt('Enter WebSocket URL or ?HOST_PORT=ws://host:port', cur);
+        const parsed = parseHostInput(input);
+        if (parsed) setHostOverride(parsed);
+        else if (input !== null) appendMessage('error', 'No valid host found in input');
+      });
+    }
+  } catch (e) {}
 
   // Update header location when a zone/location is detected
   function updateLocation(name) {
@@ -173,6 +248,26 @@
     return '';
   }
 
+  function getRole(obj) {
+    // Return 'support' for tanks/healers, 'dps' otherwise
+    if (!obj || typeof obj !== 'object') return 'dps';
+    const job = (getJob(obj) || '').toUpperCase().trim();
+    const tanks = new Set(['PLD','WAR','DRK','GNB']);
+    const healers = new Set(['WHM','SCH','AST','SGE']);
+    if (tanks.has(job) || healers.has(job)) return 'support';
+
+    // Fallback: explicit flags/role fields some wrappers provide
+    if ('IsTank' in obj && (obj.IsTank === true || obj.IsTank === 1 || String(obj.IsTank).toLowerCase() === 'true')) return 'support';
+    if ('IsHealer' in obj && (obj.IsHealer === true || obj.IsHealer === 1 || String(obj.IsHealer).toLowerCase() === 'true')) return 'support';
+    if ('Role' in obj && typeof obj.Role === 'string') {
+      const r = String(obj.Role).toLowerCase();
+      if (r.includes('tank') || r.includes('heal')) return 'support';
+    }
+
+    // generic fallback: treat as DPS
+    return 'dps';
+  }
+
   function isLikelyPlayer(obj) {
     if (!obj || typeof obj !== 'object') return false;
     if ('Job' in obj || 'job' in obj) return true;
@@ -221,21 +316,46 @@
     // prefer likely players
     let players = arr.filter(isLikelyPlayer);
     if (!players.length) players = arr.slice(0, 8);
-    // map to name/job/dps
-    const rows = players.map(p => ({ name: getName(p) || 'Unknown', job: getJob(p), dps: getDpsValue(p) }));
+    // map to name/job/dps/role
+    const rows = players.map(p => ({ name: getName(p) || 'Unknown', job: getJob(p), dps: getDpsValue(p), role: getRole(p) }));
     // sort by dps desc
     rows.sort((a,b) => (isNaN(b.dps)?0:b.dps) - (isNaN(a.dps)?0:a.dps));
     const total = rows.reduce((s,r) => s + (isNaN(r.dps)?0:r.dps), 0);
-    // render
+    // render two-column layout: Support (tanks/healers) | DPS
     const parts = [];
     parts.push(`<div class="dps-total">Party DPS: ${formatNumber(total)}</div>`);
-    parts.push('<div class="dps-rows">');
+    parts.push('<div class="dps-columns">');
+
     const maxDps = rows.length && !isNaN(rows[0].dps) ? rows[0].dps : 1;
-    for (const r of rows) {
-      const pct = isNaN(r.dps) || maxDps <= 0 ? 0 : Math.round((r.dps / maxDps) * 100);
-      const jobHtml = r.job ? `<span class="player-job"> ${escapeHtml(r.job)}</span>` : '';
-      parts.push(`<div class="dps-row" style="--bar-pct:${pct}%"><div class="dps-name">${escapeHtml(r.name)}${jobHtml}</div><div class="dps-value">${formatNumber(r.dps)}</div></div>`);
+
+    // Support column
+    parts.push('<div class="dps-column support"><div class="column-title">Support</div>');
+    const supportRows = rows.filter(r => r.role === 'support');
+    if (!supportRows.length) {
+      parts.push('<div class="dps-empty">No supports</div>');
+    } else {
+      for (const r of supportRows) {
+        const pct = isNaN(r.dps) || maxDps <= 0 ? 0 : Math.round((r.dps / maxDps) * 100);
+        const jobHtml = r.job ? `<span class="player-job"> ${escapeHtml(r.job)}</span>` : '';
+        parts.push(`<div class="dps-row" style="--bar-pct:${pct}%"><div class="dps-name">${escapeHtml(r.name)}${jobHtml}</div><div class="dps-value">${formatNumber(r.dps)}</div></div>`);
+      }
     }
+    parts.push('</div>');
+
+    // DPS column
+    parts.push('<div class="dps-column dps"><div class="column-title">DPS</div>');
+    const dpsRows = rows.filter(r => r.role !== 'support');
+    if (!dpsRows.length) {
+      parts.push('<div class="dps-empty">No DPS</div>');
+    } else {
+      for (const r of dpsRows) {
+        const pct = isNaN(r.dps) || maxDps <= 0 ? 0 : Math.round((r.dps / maxDps) * 100);
+        const jobHtml = r.job ? `<span class="player-job"> ${escapeHtml(r.job)}</span>` : '';
+        parts.push(`<div class="dps-row" style="--bar-pct:${pct}%"><div class="dps-name">${escapeHtml(r.name)}${jobHtml}</div><div class="dps-value">${formatNumber(r.dps)}</div></div>`);
+      }
+    }
+    parts.push('</div>');
+
     parts.push('</div>');
     panel.innerHTML = parts.join('');
     // remember last rendered HTML so we can keep it when no new data is present
@@ -461,7 +581,8 @@
   }
 
   async function autoConnect() {
-    const candidates = [ (urlSelect && urlSelect.value) || 'ws://127.0.0.1:10501', 'ws://127.0.0.1:10501/ws', 'ws://127.0.0.1:10501/socket', 'ws://127.0.0.1:10501/overlay', 'ws://127.0.0.1:10501/watch' ];
+    const defaults = [ (urlSelect && urlSelect.value) || 'ws://127.0.0.1:10501', 'ws://127.0.0.1:10501/ws', 'ws://127.0.0.1:10501/socket', 'ws://127.0.0.1:10501/overlay', 'ws://127.0.0.1:10501/watch' ];
+    const candidates = hostOverride ? [hostOverride, ...defaults.filter(u => u !== hostOverride)] : defaults;
     for (const url of candidates) {
       appendMessage('info', 'Trying ' + url);
       try {

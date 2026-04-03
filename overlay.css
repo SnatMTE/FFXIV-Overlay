@@ -192,6 +192,31 @@ main { margin-top: 8px; }
 
 .dps-rows {}
 
+.dps-columns {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.dps-column {
+  flex: 1 1 50%;
+  min-width: 0;
+}
+
+.dps-column .column-title {
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dps-column .dps-row { margin-bottom: 2px; }
+
+.dps-column.support .dps-row::before { background: linear-gradient(90deg, rgba(200,168,75,0.06) 0%, rgba(200,168,75,0.02) 100%); }
+.dps-column.dps .dps-row::before { background: linear-gradient(90deg, rgba(74,127,168,0.20) 0%, rgba(74,127,168,0.03) 100%); }
+
 .dps-row {
   display: flex;
   justify-content: space-between;
