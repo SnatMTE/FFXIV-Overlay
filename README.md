@@ -12,6 +12,7 @@ A lightweight web-based overlay for Final Fantasy XIV. The idea of the overlay i
 
 - An overlay host or browser capable of loading local HTML (e.g. OBS Browser Source).
 - A modern web browser for testing (Chrome, Edge, Firefox).
+- It is **NOT** designed to be overlayed over Final Fantasy XIV.
 
 ## Quick start
 

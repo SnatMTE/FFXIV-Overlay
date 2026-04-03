@@ -316,17 +316,28 @@
     // prefer likely players
     let players = arr.filter(isLikelyPlayer);
     if (!players.length) players = arr.slice(0, 8);
-    // map to name/job/dps/role
-    const rows = players.map(p => ({ name: getName(p) || 'Unknown', job: getJob(p), dps: getDpsValue(p), role: getRole(p) }));
+    // map to name/job/dps/role and derive roleType (tank/healer/dps)
+    const rows = players.map(p => {
+      const name = getName(p) || 'Unknown';
+      const job = getJob(p);
+      const dps = getDpsValue(p);
+      const role = getRole(p);
+      const tanks = new Set(['PLD','WAR','DRK','GNB']);
+      const healers = new Set(['WHM','SCH','AST','SGE']);
+      let roleType = 'dps';
+      if (tanks.has(job)) roleType = 'tank';
+      else if (healers.has(job)) roleType = 'healer';
+      else roleType = 'dps';
+      return { name, job, dps, role, roleType };
+    });
     // sort by dps desc
     rows.sort((a,b) => (isNaN(b.dps)?0:b.dps) - (isNaN(a.dps)?0:a.dps));
     const total = rows.reduce((s,r) => s + (isNaN(r.dps)?0:r.dps), 0);
     // render two-column layout: Support (tanks/healers) | DPS
     const parts = [];
     parts.push(`<div class="dps-total">Party DPS: ${formatNumber(total)}</div>`);
-    parts.push('<div class="dps-columns">');
 
-    const maxDps = rows.length && !isNaN(rows[0].dps) ? rows[0].dps : 1;
+    parts.push('<div class="dps-columns">');
 
     // Support column
     parts.push('<div class="dps-column support"><div class="column-title">Support</div>');
@@ -335,9 +346,9 @@
       parts.push('<div class="dps-empty">No supports</div>');
     } else {
       for (const r of supportRows) {
-        const pct = isNaN(r.dps) || maxDps <= 0 ? 0 : Math.round((r.dps / maxDps) * 100);
+        const pct = isNaN(r.dps) || total <= 0 ? 0 : Math.round((r.dps / total) * 100);
         const jobHtml = r.job ? `<span class="player-job"> ${escapeHtml(r.job)}</span>` : '';
-        parts.push(`<div class="dps-row" style="--bar-pct:${pct}%"><div class="dps-name">${escapeHtml(r.name)}${jobHtml}</div><div class="dps-value">${formatNumber(r.dps)}</div></div>`);
+        parts.push(`<div class="dps-row"><div class="dps-name ${r.roleType}"><div class="name-line"><span class="player-name">${escapeHtml(r.name)}</span>${jobHtml}</div><div class="mini-bar" style="--bar-pct:${pct}%"><div class="mini-bar-fill"></div><div class="mini-bar-percent">${pct}%</div></div></div><div class="dps-value">${formatNumber(r.dps)}</div></div>`);
       }
     }
     parts.push('</div>');
@@ -349,9 +360,9 @@
       parts.push('<div class="dps-empty">No DPS</div>');
     } else {
       for (const r of dpsRows) {
-        const pct = isNaN(r.dps) || maxDps <= 0 ? 0 : Math.round((r.dps / maxDps) * 100);
+        const pct = isNaN(r.dps) || total <= 0 ? 0 : Math.round((r.dps / total) * 100);
         const jobHtml = r.job ? `<span class="player-job"> ${escapeHtml(r.job)}</span>` : '';
-        parts.push(`<div class="dps-row" style="--bar-pct:${pct}%"><div class="dps-name">${escapeHtml(r.name)}${jobHtml}</div><div class="dps-value">${formatNumber(r.dps)}</div></div>`);
+        parts.push(`<div class="dps-row"><div class="dps-name ${r.roleType}"><div class="name-line"><span class="player-name">${escapeHtml(r.name)}</span>${jobHtml}</div><div class="mini-bar" style="--bar-pct:${pct}%"><div class="mini-bar-fill"></div><div class="mini-bar-percent">${pct}%</div></div></div><div class="dps-value">${formatNumber(r.dps)}</div></div>`);
       }
     }
     parts.push('</div>');
