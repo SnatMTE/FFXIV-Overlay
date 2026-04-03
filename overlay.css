@@ -28,6 +28,9 @@ body {
     radial-gradient(ellipse 80% 60% at 15% 40%, rgba(15, 35, 75, 0.55) 0%, transparent 70%),
     radial-gradient(ellipse 60% 40% at 85% 10%, rgba(40, 15, 80, 0.30) 0%, transparent 55%);
   min-height: 100vh;
+  /* Make layout a column so main content can expand to fill the viewport */
+  display: flex;
+  flex-direction: column;
 }
 
 /* ─── Shared corner-bracket decoration ───────────────── */
@@ -140,6 +143,9 @@ main { margin-top: 8px; }
   display: flex;
   gap: 10px;
   align-items: flex-start;
+  /* Allow the container to grow and fill available vertical space */
+  flex: 1 1 auto;
+  min-height: 0; /* allow children to shrink properly inside flex */
 }
 
 /* ─── Panel ──────────────────────────────────────────── */
@@ -150,7 +156,7 @@ main { margin-top: 8px; }
   overflow: hidden;
 }
 
-#panel-dps { flex: 1 1 100%; width: 100%; min-width: 0; }
+#panel-dps { flex: 1 1 100%; width: 100%; min-width: 0; display: flex; flex-direction: column; height: 100%; min-height: 0; }
 
 /* ─── Panel Header ───────────────────────────────────── */
 .panel h2 {
@@ -177,7 +183,7 @@ main { margin-top: 8px; }
 }
 
 /* ─── DPS List ───────────────────────────────────────── */
-.dps-list { padding: 8px 12px 10px; font-size: 12px; }
+.dps-list { padding: 8px 12px 10px; font-size: 12px; overflow: auto; flex: 1 1 auto; min-height: 0; }
 
 .dps-total {
   font-weight: 700;

@@ -343,7 +343,7 @@
     parts.push('</div>');
 
     // DPS column
-    parts.push('<div class="dps-column dps"><div class="column-title">DPS</div>');
+    parts.push('<div class="dps-column dps"><div class="column-title">Damage Dealers</div>');
     const dpsRows = rows.filter(r => r.role !== 'support');
     if (!dpsRows.length) {
       parts.push('<div class="dps-empty">No DPS</div>');
