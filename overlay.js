@@ -4,6 +4,14 @@
   const urlSelect = document.getElementById('url-select');
   let gotFirstEvent = false;
   let lastDpsHtml = null;
+  // Disable inserting every received event into the messages DOM by default —
+  // this prevents huge DOM churn when the websocket is very chatty.
+  const LOG_EVENTS = false;
+  // Throttle rendering of the DPS panel so DOM updates occur at most ~60fps.
+  let latestCombatData = null;
+  let dpsRenderScheduled = false;
+  let lastRenderTs = 0;
+  const MIN_FRAME_MS = 1000 / 60;
   // Optional host override from query or user input (ws://...)
   let hostOverride = null;
 
@@ -138,6 +146,8 @@
   }
 
   function appendMessage(kind, content) {
+    // Skip verbose per-event logging unless explicitly enabled.
+    if (kind === 'event' && !LOG_EVENTS) return;
     const ts = new Date().toLocaleTimeString();
     let body = content;
     if (typeof content === 'object') {
@@ -158,7 +168,7 @@
   }
 
   function handleEvent(name, data) {
-    appendMessage('event', { event: name, data: data });
+    if (LOG_EVENTS) appendMessage('event', { event: name, data: data });
     // mark that we've seen an event (used by retry logic)
     gotFirstEvent = true;
     // try to detect zone/location from the payload or event name/log line
@@ -171,7 +181,22 @@
       if (!data) return;
       const lname = (String(name || '')).toLowerCase();
       if (lname.includes('combat') || data.CombatData || data.Combatants || data.Players || data.PlayersList) {
-        updateDpsPanel(data);
+        // Schedule an update instead of updating the DOM synchronously. This
+        // batches rapid incoming events and caps rendering to ~60 FPS.
+        latestCombatData = data;
+        if (!dpsRenderScheduled) {
+          dpsRenderScheduled = true;
+          requestAnimationFrame(function rafHandler(ts) {
+            if (ts - lastRenderTs < MIN_FRAME_MS) {
+              // Too soon — schedule next frame.
+              requestAnimationFrame(rafHandler);
+              return;
+            }
+            lastRenderTs = ts;
+            dpsRenderScheduled = false;
+            try { updateDpsPanel(latestCombatData); } catch (e) { appendMessage('error', 'updateDpsPanel error: ' + e); }
+          });
+        }
       }
     } catch (e) {
       // ignore
@@ -368,9 +393,12 @@
     parts.push('</div>');
 
     parts.push('</div>');
-    panel.innerHTML = parts.join('');
+    const newHtml = parts.join('');
+    // Avoid expensive DOM writes when content is unchanged.
+    if (newHtml === lastDpsHtml) return;
+    panel.innerHTML = newHtml;
     // remember last rendered HTML so we can keep it when no new data is present
-    lastDpsHtml = panel.innerHTML;
+    lastDpsHtml = newHtml;
   }
 
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]); }); }
