@@ -405,6 +405,49 @@
 
   // Diagnostics: indicate script loaded
   appendMessage('info', 'Overlay script loaded — checking for OverlayPlugin API');
+  // If ?demo present, pre-fill DPS panel with Final Fantasy characters
+  (function initDemoMode(){
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (!params.has('demo')) return;
+      appendMessage('info', 'Demo mode enabled: pre-filling party with FF characters');
+      const demoChars = [
+        { Name: 'Terra Branford', Job: 'White Mage', IsPlayer: true },
+        { Name: 'Aerith Gainsborough', Job: 'White Mage', IsPlayer: true },
+        { Name: 'Oerba Dia Vanille', Job: 'Black Mage', IsPlayer: true },
+        { Name: 'Oerba Yun Fang', Job: 'Dragoon', IsPlayer: true },
+        { Name: 'Tifa Lockhart', Job: 'Monk', IsPlayer: true },
+        { Name: 'Garnet Til Alexandros XVII', Job: 'Summoner', IsPlayer: true },
+        { Name: 'Claire Farron', Job: 'Paladin', IsPlayer: true },
+        { Name: 'Celes Chere', Job: 'Paladin', IsPlayer: true },
+      ];
+      function randomDps(min, max) { return Math.round(min + Math.random() * (max - min)); }
+      function buildCombatants() {
+        const tanks = new Set(['PLD','WAR','DRK','GNB']);
+        const healers = new Set(['WHM','SCH','AST','SGE']);
+        return demoChars.map(ch => {
+          const jobCode = normalizeJob(ch.Job || '').toUpperCase();
+          let encdps;
+          if (tanks.has(jobCode)) {
+            // Tanks should always be higher than healers: pick a higher range
+            encdps = randomDps(1200, 3500);
+          } else if (healers.has(jobCode)) {
+            encdps = randomDps(50, 700);
+          } else {
+            encdps = randomDps(300, 4500);
+          }
+          return Object.assign({}, ch, { ENCDPS: encdps });
+        });
+      }
+      // Initial render
+      try { updateDpsPanel(buildCombatants()); } catch (e) { appendMessage('error', 'Demo render failed: ' + e); }
+      // Animate DPS every 2s so demo looks alive
+      setInterval(() => {
+        try { updateDpsPanel(buildCombatants()); } catch (e) {}
+      }, 2000);
+      try { if (statusEl) statusEl.textContent = 'Demo Mode'; } catch (e) {}
+    } catch (e) {}
+  })();
 
   // Attach handlers when OverlayPlugin API becomes available. Some setups inject
   // the API slightly after the page loads, so poll for it for a few seconds.

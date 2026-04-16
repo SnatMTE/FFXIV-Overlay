@@ -20,6 +20,7 @@ A lightweight web-based overlay for Final Fantasy XIV. The idea of the overlay i
 2. Open `index.html` in a browser for quick testing.
 3. Change layout and colours in `overlay.css`.
 4. Modify interactions and behaviour in `overlay.js`.
+5. For testing, try demo mode by opening `index.html?demo` (or append `?demo` to your overlay URL). This pre-fills the DPS panel with Final Fantasy characters and random DPS values.
 
 ## Files
 
