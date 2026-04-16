@@ -416,7 +416,7 @@
         { Name: 'Aerith Gainsborough', Job: 'White Mage', IsPlayer: true },
         { Name: 'Oerba Dia Vanille', Job: 'Black Mage', IsPlayer: true },
         { Name: 'Oerba Yun Fang', Job: 'Dragoon', IsPlayer: true },
-        { Name: 'Tifa Lockhart', Job: 'Monk', IsPlayer: true },
+        { Name: 'Tifa Lockhart', Job: 'MNK', IsPlayer: true },
         { Name: 'Garnet Til Alexandros XVII', Job: 'Summoner', IsPlayer: true },
         { Name: 'Claire Farron', Job: 'Paladin', IsPlayer: true },
         { Name: 'Celes Chere', Job: 'Paladin', IsPlayer: true },

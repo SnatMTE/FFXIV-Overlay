@@ -21,10 +21,16 @@
   --dps-color:         #c14b4b;
 }
 
+/* Ensure the root element matches the overlay background so no white edge shows */
+html {
+  height: 100%;
+  background-color: var(--bg);
+}
+
 body {
   font-family: 'Cinzel', Georgia, 'Times New Roman', serif;
   margin: 0;
-  padding: 14px;
+  padding: 0;
   color: var(--text);
   background-color: var(--bg);
   background-image:
@@ -140,7 +146,7 @@ select {
 }
 
 /* ─── Main / Container ───────────────────────────────── */
-main { margin-top: 8px; }
+main { margin-top: 0; }
 
 #container {
   display: flex;
@@ -356,7 +362,7 @@ main { margin-top: 8px; }
 
 /* ─── Footer ─────────────────────────────────────────── */
 #site-footer {
-  margin-top: 12px;
+  margin-top: 0;
   padding: 10px 12px;
   text-align: center;
   border-top: 1px solid var(--gold-border-faint);
