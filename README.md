@@ -16,7 +16,8 @@ A lightweight web-based overlay for Final Fantasy XIV. The idea of the overlay i
 
 1. Point your overlay host at `index.html` or use https://snatmte.github.io/FFXIV-Overlay/
 2. Open `index.html` in a browser for quick testing.
-5. For testing, try demo mode by opening `index.html?demo` (or append `?demo` to your overlay URL). This pre-fills the DPS panel with characters and random DPS values.
+3. For testing, try demo mode by opening `index.html?demo` (or append `?demo` to your overlay URL). This pre-fills the DPS panel with characters and random DPS values.
+4. If you ain't using the default IINACT websocket port, click top right to set the URL and port.
 
 ## Files
 
